@@ -28,6 +28,10 @@
 #include "codechal_encoder_base.h"
 #include "codechal_encode_tracked_buffer_hevc.h"
 #include "mos_solo_generic.h"
+#include <chrono>
+
+//#define CHECK_DURATIONS
+#define SYNC_ENC_SYNC_PAK
 
 void CodechalEncoderState::PrepareNodes(
     MOS_GPU_NODE& videoGpuNode,
@@ -562,8 +566,16 @@ MOS_STATUS CodechalEncoderState::Allocate(CodechalSetting * codecHalSettings)
     return MOS_STATUS_SUCCESS;
 }
 
+static int g_count = 0;
+static std::vector<int> g_enc_times;
+static std::vector<int> g_pak_times;
+static std::vector<int> g_all_times;
+
 MOS_STATUS CodechalEncoderState::Execute(void *params)
 {
+#ifdef CHECK_DURATIONS
+    auto started = std::chrono::high_resolution_clock::now();
+#endif
     CODECHAL_ENCODE_FUNCTION_ENTER;
 
     CODECHAL_ENCODE_CHK_STATUS_RETURN(Codechal::Execute(params));
@@ -582,7 +594,14 @@ MOS_STATUS CodechalEncoderState::Execute(void *params)
     {
         CODECHAL_ENCODE_CHK_STATUS_RETURN(ExecuteEnc(encodeParams));
     }
+#ifdef CHECK_DURATIONS
+    auto done = std::chrono::high_resolution_clock::now();
+    int duration = std::chrono::duration_cast<std::chrono::microseconds>(done-started).count();
+    g_all_times.push_back(duration);
 
+    std::cout << "[" << g_count++ << "]" << "Execute time " << duration << "\n";
+    std::cout <<  "\n";
+#endif
     return MOS_STATUS_SUCCESS;
 }
 
@@ -4373,10 +4392,30 @@ MOS_STATUS CodechalEncoderState::ExecuteEnc(
                 CODECHAL_ENCODE_CHK_STATUS_RETURN(m_osInterface->pfnResourceWait(m_osInterface, &syncParams));
                 m_osInterface->pfnSetResourceSyncTag(m_osInterface, &syncParams);
             }
-
+#ifdef CHECK_DURATIONS
+            auto started = std::chrono::high_resolution_clock::now();
+#endif
             // Call ENC Kernels
             CODECHAL_ENCODE_CHK_STATUS_MESSAGE_RETURN(ExecuteKernelFunctions(),
                 "ENC failed.");
+
+#ifdef SYNC_ENC_SYNC_PAK
+            // Lock PAK object to make ENC sync point
+            {
+                MOS_LOCK_PARAMS lockFlags = {};
+                lockFlags.ReadOnly = 1;
+                uint8_t *data             = (uint8_t *)m_osInterface->pfnLockResource(m_osInterface, &m_resMbCodeSurface, &lockFlags);
+                CODECHAL_ENCODE_CHK_NULL_RETURN(data);
+                m_osInterface->pfnUnlockResource(m_osInterface, &m_resMbCodeSurface);
+            }
+#endif
+
+#ifdef CHECK_DURATIONS
+            auto done = std::chrono::high_resolution_clock::now();
+            int duration = std::chrono::duration_cast<std::chrono::microseconds>(done-started).count();
+            g_enc_times.push_back(duration);
+            std::cout << "ENC time " << duration << "\n";
+#endif
         }
     }
 
@@ -4393,7 +4432,9 @@ MOS_STATUS CodechalEncoderState::ExecuteEnc(
             m_currPass = 0;
 
             CODECHAL_ENCODE_CHK_STATUS_RETURN(VerifySpaceAvailable());
-
+#ifdef CHECK_DURATIONS
+            auto started = std::chrono::high_resolution_clock::now();
+#endif
             for (m_currPass = 0; m_currPass <= m_numPasses; m_currPass++)
             {
                 m_firstTaskInPhase = (m_currPass == 0);
@@ -4409,6 +4450,24 @@ MOS_STATUS CodechalEncoderState::ExecuteEnc(
 
                 m_lastTaskInPhase = false;
             }
+
+#ifdef SYNC_ENC_SYNC_PAK
+            // Lock out bitstream to make PAK sync point
+            {
+                MOS_LOCK_PARAMS lockFlags = {};
+                lockFlags.ReadOnly = 1;
+                uint8_t *data             = (uint8_t *)m_osInterface->pfnLockResource(m_osInterface, &m_resBitstreamBuffer, &lockFlags);
+                CODECHAL_ENCODE_CHK_NULL_RETURN(data);
+                m_osInterface->pfnUnlockResource(m_osInterface, &m_resBitstreamBuffer);
+            }
+#endif
+
+#ifdef CHECK_DURATIONS
+            auto done = std::chrono::high_resolution_clock::now();
+            int duration = std::chrono::duration_cast<std::chrono::microseconds>(done-started).count();
+            g_pak_times.push_back(duration);
+            std::cout << "PAK time " << duration << "\n";
+#endif
         }
 
         // User Feature Key Reporting - only happens after first frame
@@ -4581,6 +4640,16 @@ CodechalEncoderState::CodechalEncoderState(
 
 CodechalEncoderState::~CodechalEncoderState()
 {
+#ifdef CHECK_DURATIONS
+    float average = std::accumulate( g_enc_times.begin(), g_enc_times.end(), 0.0)/g_enc_times.size();
+    std::cout << "ENC AVG time " << average << "\n";
+
+    average = std::accumulate( g_pak_times.begin(), g_pak_times.end(), 0.0)/g_enc_times.size();
+    std::cout << "PAK AVG time " << average << "\n";
+
+    average = std::accumulate( g_all_times.begin(), g_all_times.end(), 0.0)/g_enc_times.size();
+    std::cout << "ALL AVG time " << average << "\n";
+#endif
     if (m_gpuCtxCreatOpt)
     {
         MOS_Delete(m_gpuCtxCreatOpt);
