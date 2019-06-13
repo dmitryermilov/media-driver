@@ -56,7 +56,7 @@
 #define ENCODE_DP_HEVC_NUM_MAX_VME_L1_REF_G9  1
 #define ENCODE_DP_HEVC_MAX_NUM_ROI            16
 #define ENCODE_DP_HEVC_ROI_BLOCK_SIZE         1     //From DDI, 0:8x8, 1:16x16, 2:32x32, 3:64x64
-#define ENCODE_DP_HEVC_ROI_BLOCK_Width        16    
+#define ENCODE_DP_HEVC_ROI_BLOCK_Width        16
 #define ENCODE_DP_HEVC_ROI_BLOCK_HEIGHT       16
 
 typedef enum
@@ -307,7 +307,7 @@ typedef struct _CODEC_HEVC_ENCODE_SEQUENCE_PARAMS
             *        \n - 1 : tile based encoding enabled.
             */
             uint32_t        EnableTileBasedEncode    : 1;
-            /*! \brief Indicates if BRC can use larger P/B frame size than UserMaxPBFrameSize 
+            /*! \brief Indicates if BRC can use larger P/B frame size than UserMaxPBFrameSize
             *
             *        \n - 0 : BRC can not use larger P/B frame size  than UserMaxPBFrameSize.
             *        \n - 1 : BRC can use larger P/B frame size  than UserMaxPBFrameSize.
@@ -711,7 +711,7 @@ typedef struct _CODEC_HEVC_ENCODE_PICTURE_PARAMS
     *    Applies only to BRC case.
     */
     char                    MinDeltaQp;
-    
+
     union
     {
         struct
@@ -722,7 +722,7 @@ typedef struct _CODEC_HEVC_ENCODE_PICTURE_PARAMS
             uint32_t        RoundingOffsetInter : 7;
             uint32_t        reservedbits : 16;
         } fields;
-        
+
         uint32_t            value;
     } CustomRoundingOffsetsParams;
 
@@ -808,6 +808,31 @@ typedef struct _CODEC_HEVC_ENCODE_PICTURE_PARAMS
     char                    pps_act_y_qp_offset_plus5;
     char                    pps_act_cb_qp_offset_plus5;
     char                    pps_act_cr_qp_offset_plus3;
+
+    /*! \brief Maximum frame size for all frame types in bytes.
+    *
+    *    Applicable for CQP and multi PAK. If dwMaxFrameSize > 0, driver will do multiple PAK and adjust QP
+    *    (frame level QP + slice_qp_delta) to make the compressed frame size to be less than this value.
+    *    If dwMaxFrameSize equals 0, driver will not do multiple PAK and do not adjust QP.
+    */
+    uint32_t        dwMaxFrameSize;
+
+    /*! \brief Total pass number for multiple PAK.
+    *
+    *    Valid range is 0 - 4. If dwNumPasses is set to 0, driver will not do multiple PAK and do not adjust
+    *    QP (frame level QP + slice_qp_delta), otherwise, driver will do multiple times PAK and in each time
+    *    the QP will be adjust according deltaQp parameters.
+    */
+    uint32_t        dwNumPasses;
+
+    /*! \brief Delta QP array for each PAK pass.
+    *
+    *    This pointer points to an array of deltaQp, the max array size for AVC encoder is 4. The valid range
+    *    for each deltaQp is 0 - 51. If the value is out of this valid range, driver will return error.
+    *    Otherwise, driver will adjust QP (frame level QP + slice_qp_delta) by adding this value in each PAK pass.
+    */
+    uint8_t        *pDeltaQp;
+
 } CODEC_HEVC_ENCODE_PICTURE_PARAMS, *PCODEC_HEVC_ENCODE_PICTURE_PARAMS;
 
 /*! \brief Slice-level parameters of a compressed picture for HEVC encoding.

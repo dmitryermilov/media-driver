@@ -200,6 +200,19 @@ protected:
     VAStatus ParsePackedHeaderData(void *ptr);
 
     //!
+    //! \brief    Parse max frame size setting for multiple pass
+    //! \details  Parse VAEncMiscParameterBufferMultiPassFrameSize
+    //!           to PCODEC_AVC_ENCODE_PIC_PARAMS
+    //!
+    //! \param    [in] data
+    //!           Pointer to buffer VAEncMiscParameterBufferMultiPassFrameSize
+    //!
+    //! \return   VAStatus
+    //!           VA_STATUS_SUCCESS if successful, else fail reason
+    //!
+    VAStatus ParseMiscParamMultiPassFrameSize(void *data);
+
+    //!
     //! \brief    Parse Misc Parameter buffer to Encode Context
     //!
     //! \param    [in] ptr

@@ -32,6 +32,8 @@
 #include "media_ddi_factory.h"
 #include "codechal_encoder_base.h"
 
+static const uint8_t maxPassesNum = 4;
+
 extern template class MediaDdiFactoryNoArg<DdiEncodeBase>;
 
 static bool isEncodeHevcRegistered =
@@ -126,7 +128,7 @@ VAStatus DdiEncodeHevc::ContextInitialize(
     {
         codecHalSettings->chromaFormat    = HCP_CHROMA_FORMAT_YUV422;
         codecHalSettings->lumaChromaDepth = CODECHAL_LUMA_CHROMA_DEPTH_10_BITS;
-    }    
+    }
     else if(m_encodeCtx->vaProfile == VAProfileHEVCMain422_12)
     {
         codecHalSettings->chromaFormat    = HCP_CHROMA_FORMAT_YUV422;
@@ -375,7 +377,7 @@ VAStatus DdiEncodeHevc::EncodeInCodecHal(uint32_t numSlices)
 
     encodeParams.pBSBuffer      = m_encodeCtx->pbsBuffer;
     encodeParams.pSlcHeaderData = (void *)m_encodeCtx->pSliceHeaderData;
-    
+
     CodechalEncoderState *encoder = dynamic_cast<CodechalEncoderState *>(m_encodeCtx->pCodecHal);
 
     encoder->m_mfeEncodeParams.submitIndex  = 0;
@@ -939,6 +941,42 @@ VAStatus DdiEncodeHevc::ParsePackedHeaderData(void *ptr)
     return VA_STATUS_SUCCESS;
 }
 
+VAStatus DdiEncodeHevc::ParseMiscParamMultiPassFrameSize(void *data)
+{
+    DDI_CHK_NULL(data, "nullptr data", VA_STATUS_ERROR_INVALID_PARAMETER);
+
+    PCODEC_HEVC_ENCODE_PICTURE_PARAMS  picParams = (PCODEC_HEVC_ENCODE_PICTURE_PARAMS)(m_encodeCtx->pPicParams);
+    VAEncMiscParameterBufferMultiPassFrameSize *vaEncMiscParamMultiPassFrameSize = (VAEncMiscParameterBufferMultiPassFrameSize *)data;
+    DDI_CHK_NULL(picParams, "nullptr picParams", VA_STATUS_ERROR_INVALID_PARAMETER);
+
+    //add for multiple pass pak
+    picParams->dwMaxFrameSize = vaEncMiscParamMultiPassFrameSize->max_frame_size;
+    if (picParams->dwMaxFrameSize)
+    {
+        picParams->dwNumPasses = vaEncMiscParamMultiPassFrameSize->num_passes;
+        if ((picParams->dwNumPasses == 0) || (picParams->dwNumPasses > maxPassesNum))
+        {
+            return VA_STATUS_ERROR_INVALID_PARAMETER;
+        }
+        if (picParams->pDeltaQp != nullptr)
+        {
+            MOS_FreeMemory(picParams->pDeltaQp);
+        }
+        picParams->pDeltaQp = (uint8_t *)MOS_AllocAndZeroMemory(sizeof(uint8_t) * picParams->dwNumPasses);
+        if (!picParams->pDeltaQp)
+        {
+            return VA_STATUS_ERROR_INVALID_PARAMETER;
+        }
+
+        if (MOS_STATUS_SUCCESS != MOS_SecureMemcpy(picParams->pDeltaQp, picParams->dwNumPasses, vaEncMiscParamMultiPassFrameSize->delta_qp, picParams->dwNumPasses))
+        {
+            return VA_STATUS_ERROR_INVALID_PARAMETER;
+        }
+    }
+
+    return VA_STATUS_SUCCESS;
+}
+
 VAStatus DdiEncodeHevc::ParseMiscParams(void *ptr)
 {
     DDI_CHK_NULL(m_encodeCtx, "nullptr m_encodeCtx", VA_STATUS_ERROR_INVALID_PARAMETER);
@@ -1231,6 +1269,12 @@ VAStatus DdiEncodeHevc::ParseMiscParams(void *ptr)
     {
         VAEncMiscParameterEncQuality *vaEncMiscParamPrivate           = (VAEncMiscParameterEncQuality *)miscParamBuf->data;
         picParams->bUseRawPicForRef                                = vaEncMiscParamPrivate->useRawPicForRef;
+        break;
+    }
+    case VAEncMiscParameterTypeMultiPassFrameSize:
+    {
+        if (VA_STATUS_SUCCESS != ParseMiscParamMultiPassFrameSize((void *)miscParamBuf->data))
+            return VA_STATUS_ERROR_INVALID_PARAMETER;
         break;
     }
     default:

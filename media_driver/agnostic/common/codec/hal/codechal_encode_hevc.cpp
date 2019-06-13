@@ -247,6 +247,10 @@ MOS_STATUS CodechalEncHevcState::SetPictureStructs()
             m_numPasses = (uint8_t)m_hevcFeiPicParams->dwNumPasses;
         }
     }
+    else if (CodecHalUsesPakEngine(m_codecFunction) && m_hevcPicParams->dwMaxFrameSize != 0)
+    {
+        m_numPasses = (uint8_t)m_hevcPicParams->dwNumPasses;
+    }
 
     return eStatus;
 }
@@ -1563,7 +1567,7 @@ MOS_STATUS CodechalEncHevcState::InitializePicture(const EncoderParams& params)
 
     CODECHAL_ENCODE_CHK_STATUS_RETURN(CodechalEncodeHevcBase::InitializePicture(params));
     CODECHAL_ENCODE_CHK_STATUS_RETURN(GetFrameBrcLevel());
-    
+
     return eStatus;
 }
 
@@ -1814,7 +1818,7 @@ MOS_STATUS CodechalEncHevcState::GetRoundingIntraInterToUse()
         if (m_hevcSeqParams->NumOfBInGop[1] != 0 || m_hevcSeqParams->NumOfBInGop[2] != 0)
         {
             //Hierachical B GOP
-            if (m_hevcPicParams->CodingType == I_TYPE || 
+            if (m_hevcPicParams->CodingType == I_TYPE ||
                 m_hevcPicParams->CodingType == P_TYPE)
             {
                 m_roundingIntraInUse = 4;
@@ -1842,8 +1846,8 @@ MOS_STATUS CodechalEncHevcState::GetRoundingIntraInterToUse()
     {
         if (m_hevcSeqParams->NumOfBInGop[1] != 0 || m_hevcSeqParams->NumOfBInGop[2] != 0)
         {
-            //Hierachical B GOP 
-            if (m_hevcPicParams->CodingType == I_TYPE || 
+            //Hierachical B GOP
+            if (m_hevcPicParams->CodingType == I_TYPE ||
                 m_hevcPicParams->CodingType == P_TYPE)
             {
                 m_roundingInterInUse = 4;
