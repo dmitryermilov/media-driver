@@ -172,6 +172,8 @@ typedef struct _DDI_ENCODE_CONTEXT
 
     uint8_t                           targetUsage;
 
+    CodechalEncodeRepakResult         *pResRepak;
+
 } DDI_ENCODE_CONTEXT, *PDDI_ENCODE_CONTEXT;
 
 typedef struct _DDI_ENCODE_MFE_CONTEXT
@@ -430,7 +432,7 @@ VAStatus DdiEncode_DestroyContext (
 //! \param  [in] data
 //!     Data
 //! \param  [in] buf_id
-//!     VA buffer ID 
+//!     VA buffer ID
 //!
 //! \return VAStatus
 //!     VA_STATUS_SUCCESS if success, else fail reason

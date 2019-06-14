@@ -212,6 +212,9 @@ protected:
     //!
     VAStatus ParseMiscParamMultiPassFrameSize(void *data);
 
+    //
+    VAStatus ParseMiscMultiPassPerPAKOutput(DDI_MEDIA_CONTEXT *mediaCtx, void *data);
+
     //!
     //! \brief    Parse Misc Parameter buffer to Encode Context
     //!
@@ -221,7 +224,7 @@ protected:
     //! \return   VAStatus
     //!           VA_STATUS_SUCCESS if success, else fail reason
     //!
-    VAStatus ParseMiscParams(void *ptr);
+    VAStatus ParseMiscParams(DDI_MEDIA_CONTEXT *mediaCtx, void *ptr);
 
     uint16_t m_previousFRvalue = 0; //!< For saving FR value to be used in case of dynamic BRC reset.
 

@@ -85,6 +85,9 @@ DdiEncodeHevc::~DdiEncodeHevc()
         MOS_FreeMemory(m_encodeCtx->pbsBuffer);
         m_encodeCtx->pbsBuffer = nullptr;
     }
+
+    MOS_FreeMemory(m_encodeCtx->pResRepak);
+    m_encodeCtx->pResRepak = nullptr;
 }
 
 VAStatus DdiEncodeHevc::ContextInitialize(
@@ -260,7 +263,7 @@ VAStatus DdiEncodeHevc::RenderPicture(VADriverContextP ctx, VAContextID context,
             break;
 
         case VAEncMiscParameterBufferType:
-            DDI_CHK_STATUS(ParseMiscParams(data), VA_STATUS_ERROR_INVALID_BUFFER);
+            DDI_CHK_STATUS(ParseMiscParams(mediaCtx, data), VA_STATUS_ERROR_INVALID_BUFFER);
             break;
 
         case VAEncQPBufferType:
@@ -324,6 +327,8 @@ VAStatus DdiEncodeHevc::EncodeInCodecHal(uint32_t numSlices)
     encodeParams.psRawSurface        = &rawSurface;
     encodeParams.psReconSurface      = &reconSurface;
     encodeParams.presBitstreamBuffer = &bitstreamSurface;
+
+    encodeParams.pResRepak = m_encodeCtx->pResRepak;
 
     MOS_SURFACE mbQpSurface;
     if (m_encodeCtx->bMBQpEnable)
@@ -977,7 +982,62 @@ VAStatus DdiEncodeHevc::ParseMiscParamMultiPassFrameSize(void *data)
     return VA_STATUS_SUCCESS;
 }
 
-VAStatus DdiEncodeHevc::ParseMiscParams(void *ptr)
+VAStatus DdiEncodeHevc::ParseMiscMultiPassPerPAKOutput(DDI_MEDIA_CONTEXT *mediaCtx, void *data)
+{
+    VAStatus          vaStatus = VA_STATUS_SUCCESS;
+    DDI_CHK_NULL(data, "nullptr data", VA_STATUS_ERROR_INVALID_PARAMETER);
+    VAEncMiscParameterBufferMultiPassRePAKOutput *vaEncMiscParam = (VAEncMiscParameterBufferMultiPassRePAKOutput *)data;
+
+    if (vaEncMiscParam->num_passes > CODEC_ENCODE_MAX_NUM_PAK_PASSES ||
+        vaEncMiscParam->num_passes > CODECHAL_ENCODE_HEVC_MAX_NUM_PAK_PASSES)
+    {
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+    }
+
+    if (nullptr == m_encodeCtx->pResRepak)
+    {
+        m_encodeCtx->pResRepak = (CodechalEncodeRepakResult *)MOS_AllocAndZeroMemory(sizeof(CodechalEncodeRepakResult));
+        DDI_CHK_NULL(m_encodeCtx->pResRepak, "nullptr m_encodeCtx->pResRepak->", VA_STATUS_ERROR_ALLOCATION_FAILED);
+    }
+    else
+    {
+        MOS_ZeroMemory(m_encodeCtx->pResRepak, sizeof(CodechalEncodeRepakResult));
+    }
+
+    m_encodeCtx->pResRepak->dwNumResources = vaEncMiscParam->num_passes;
+
+    for (size_t i = 0; i < vaEncMiscParam->num_passes; ++i)
+    {
+       // Bitstreams
+        DDI_MEDIA_BUFFER *buf = DdiMedia_GetBufferFromVABufferID(m_encodeCtx->pMediaCtx, vaEncMiscParam->coded_buffers[i]);
+        if (nullptr == buf)
+        {
+            return VA_STATUS_ERROR_INVALID_PARAMETER;
+        }
+        RemoveFromStatusReportQueue(buf);
+        DdiMedia_MediaBufferToMosResource(buf, &(m_encodeCtx->pResRepak->bitstreamBuffers[i]));
+        DDI_CHK_STATUS(AddToStatusReportQueue((void *)m_encodeCtx->pResRepak->bitstreamBuffers[i].bo), VA_STATUS_ERROR_INVALID_BUFFER);
+
+        // Recon surfaces
+        if (vaEncMiscParam->reconstructed_pictures[i] != VA_INVALID_SURFACE)
+        {
+            DDI_CHK_RET(RegisterRTSurfaces(&(m_encodeCtx->RTtbl), DdiMedia_GetSurfaceFromVASurfaceID(mediaCtx, vaEncMiscParam->reconstructed_pictures[i])), "RegisterRTSurfaces failed!");
+        }
+
+        DDI_MEDIA_SURFACE *surface = DdiMedia_GetSurfaceFromVASurfaceID(mediaCtx, vaEncMiscParam->reconstructed_pictures[i]);
+        if (nullptr == surface)
+        {
+            DDI_ASSERTMESSAGE("invalid surface for reconstructed frame");
+            return VA_STATUS_ERROR_INVALID_PARAMETER;
+        }
+        DdiMedia_MediaSurfaceToMosResource(surface, &(m_encodeCtx->pResRepak->reconSurfaces[i].OsResource));
+    }
+
+finish:
+    return vaStatus;
+}
+
+VAStatus DdiEncodeHevc::ParseMiscParams(DDI_MEDIA_CONTEXT *mediaCtx, void *ptr)
 {
     DDI_CHK_NULL(m_encodeCtx, "nullptr m_encodeCtx", VA_STATUS_ERROR_INVALID_PARAMETER);
     DDI_CHK_NULL(ptr, "nullptr ptr", VA_STATUS_ERROR_INVALID_PARAMETER);
@@ -1275,6 +1335,15 @@ VAStatus DdiEncodeHevc::ParseMiscParams(void *ptr)
     {
         if (VA_STATUS_SUCCESS != ParseMiscParamMultiPassFrameSize((void *)miscParamBuf->data))
             return VA_STATUS_ERROR_INVALID_PARAMETER;
+        break;
+    }
+    case VAEncMiscParameterTypeMultiPassPerPAKOutput:
+    {
+        if (VA_STATUS_SUCCESS != ParseMiscMultiPassPerPAKOutput(mediaCtx, (void *)miscParamBuf->data))
+        {
+            DDI_ASSERTMESSAGE("parse misc multi pass per PAK output error.");
+            return VA_STATUS_ERROR_INVALID_PARAMETER;
+        }
         break;
     }
     default:

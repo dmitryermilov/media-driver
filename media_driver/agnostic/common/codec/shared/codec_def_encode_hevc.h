@@ -40,6 +40,7 @@
 #define CODECHAL_MAX_CUR_NUM_REF_FRAME_HEVC 8
 #define CODECHAL_NUM_INTERNAL_NV12_RT_HEVC  16
 #define CODECHAL_ENCODE_HEVC_MAX_NUM_ROI    16
+#define CODECHAL_ENCODE_HEVC_MAX_NUM_PAK_PASSES 4
 
 // HEVC VDENC
 #define ENCODE_HEVC_VDENC_NUM_MAX_SLICES        70
@@ -832,7 +833,6 @@ typedef struct _CODEC_HEVC_ENCODE_PICTURE_PARAMS
     *    Otherwise, driver will adjust QP (frame level QP + slice_qp_delta) by adding this value in each PAK pass.
     */
     uint8_t        *pDeltaQp;
-
 } CODEC_HEVC_ENCODE_PICTURE_PARAMS, *PCODEC_HEVC_ENCODE_PICTURE_PARAMS;
 
 /*! \brief Slice-level parameters of a compressed picture for HEVC encoding.
@@ -1041,4 +1041,5 @@ struct CodecEncodeHevcFeiPicParams
     uint32_t                    dwNumPasses;    //number of QPs
     uint8_t                    *pDeltaQp;       //list of detla QPs
 };
+
 #endif  // __CODEC_DEF_ENCODE_HEVC_H__

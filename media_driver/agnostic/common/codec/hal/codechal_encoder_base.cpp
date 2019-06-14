@@ -72,7 +72,7 @@ MOS_STATUS CodechalEncoderState::CreateGpuContexts()
         bool setVideoNode = false;
 
         // Create Video Context
-        if (MEDIA_IS_SKU(m_skuTable, FtrVcs2) || 
+        if (MEDIA_IS_SKU(m_skuTable, FtrVcs2) ||
             (MOS_VE_MULTINODESCALING_SUPPORTED(m_osInterface) && m_numVdbox > 1))   // Eventually move this functionality to Mhw
         {
             setVideoNode = false;
@@ -2933,7 +2933,7 @@ MOS_STATUS CodechalEncoderState::StartStatusReport(
     }
 
     CODECHAL_ENCODE_CHK_STATUS_RETURN(m_perfProfiler->AddPerfCollectStartCmd((void*)this, m_osInterface, m_miInterface, cmdBuffer));
-    
+
     return eStatus;
 }
 
@@ -3045,7 +3045,7 @@ MOS_STATUS CodechalEncoderState::EndStatusReport(
     }
 
     CODECHAL_ENCODE_CHK_STATUS_RETURN(m_perfProfiler->AddPerfCollectEndCmd((void*)this, m_osInterface, m_miInterface, cmdBuffer));
-    
+
     return eStatus;
 }
 
@@ -3573,7 +3573,7 @@ MOS_STATUS CodechalEncoderState::ReadCounterValue(uint16_t index, EncodeStatusRe
     //Report back in Big endian
     encodeStatusReport->HWCounterValue.Count = SwapEndianness(encodeStatusReport->HWCounterValue.Count);
     //IV value computation
-    encodeStatusReport->HWCounterValue.IV = *(++address2Counter); 
+    encodeStatusReport->HWCounterValue.IV = *(++address2Counter);
     encodeStatusReport->HWCounterValue.IV = SwapEndianness(encodeStatusReport->HWCounterValue.IV);
     CODECHAL_ENCODE_NORMALMESSAGE(
         "encodeStatusReport->HWCounterValue.Count = 0x%llx, encodeStatusReport->HWCounterValue.IV = 0x%llx",
@@ -3687,7 +3687,7 @@ MOS_STATUS CodechalEncoderState::GetStatusReport(
             CODECHAL_DEBUG_TOOL(
                 m_statusReportDebugInterface->m_bufferDumpFrameNum = encodeStatus->dwStoredData;
             )
-            
+
             // Current command is executed
             if (m_osInterface->pfnIsGPUHung(m_osInterface))
             {
@@ -3865,104 +3865,109 @@ MOS_STATUS CodechalEncoderState::GetStatusReport(
                 }
 
                 CODECHAL_DEBUG_TOOL(
-                    CODEC_REF_LIST currRefList = *refList;
-                    currRefList.RefPic         = encodeStatusReport->CurrOriginalPic;
-
-                    m_statusReportDebugInterface->m_currPic            = encodeStatusReport->CurrOriginalPic;
-                    m_statusReportDebugInterface->m_bufferDumpFrameNum = encodeStatus->dwStoredData;
-                    m_statusReportDebugInterface->m_frameType          = encodeStatus->wPictureCodingType;
-
-                    if (!m_vdencEnabled) {
-                        if (currRefList.bMADEnabled)
-                        {
-                            CODECHAL_ENCODE_CHK_STATUS_RETURN(
-                                m_statusReportDebugInterface->DumpBuffer(
-                                &m_resMadDataBuffer[currRefList.ucMADBufferIdx],
-                                CodechalDbgAttr::attrInput,
-                                "MADWrite",
-                                CODECHAL_MAD_BUFFER_SIZE,
-                                0,
-                                CODECHAL_MEDIA_STATE_ENC_NORMAL));
-                        }
-
-                        DumpMbEncPakOutput(refList, m_statusReportDebugInterface);
-                    }
-
-                    if (CodecHalUsesVideoEngine(m_codecFunction)) {
-                        /*  Only where the MFX engine is used the bitstream surface will be available */
-                        CODECHAL_ENCODE_CHK_STATUS_RETURN(m_statusReportDebugInterface->DumpBuffer(
-                            &currRefList.resBitstreamBuffer,
-                            CodechalDbgAttr::attrBitstream,
-                            "_PAK",
-                            encodeStatusReport->bitstreamSize,
-                            0,
-                            CODECHAL_NUM_MEDIA_STATES));
-
-                        CODECHAL_ENCODE_CHK_STATUS_RETURN(m_statusReportDebugInterface->DumpData(
-                            encodeStatusReport,
-                            sizeof(EncodeStatusReport),
-                            CodechalDbgAttr::attrStatusReport,
-                            "EncodeStatusReport_Buffer"));
-
-                        CODECHAL_ENCODE_CHK_STATUS_RETURN(DumpFrameStatsBuffer(m_statusReportDebugInterface));
-
-                        if (m_vdencEnabled)
-                        {
-                            /*CODECHAL_ENCODE_CHK_STATUS_RETURN(CodecHal_DbgDumpEncodeVdencOutputs(
-                                m_debugInterface, pEncoder));
-
-                            if (m_cmdGenHucUsed)
-                            {
-                                CODECHAL_ENCODE_CHK_STATUS_RETURN(CodecHal_DbgDumpEncodeHucCmdGen(
-                                    m_debugInterface, pEncoder));
-                            }*/
-                        }
-                    }
-
-                    if (currRefList.b32xScalingUsed) {
-                        m_statusReportDebugInterface->m_scaledBottomFieldOffset = m_scaled32xBottomFieldOffset;
-                        CODECHAL_ENCODE_CHK_STATUS_RETURN(m_statusReportDebugInterface->DumpYUVSurface(
-                            m_trackedBuf->Get32xDsSurface(currRefList.ucScalingIdx),
-                            CodechalDbgAttr::attrReconstructedSurface,
-                            "32xScaledSurf"))
-                    }
-
-                    if (currRefList.b2xScalingUsed)  // Currently only used for Gen10 Hevc Encode
+                    if (refList)
                     {
-                        m_statusReportDebugInterface->m_scaledBottomFieldOffset = 0;  // No bottom field offset for Hevc
-                        CODECHAL_ENCODE_CHK_STATUS_RETURN(m_statusReportDebugInterface->DumpYUVSurface(
-                            m_trackedBuf->Get2xDsSurface(currRefList.ucScalingIdx),
-                            CodechalDbgAttr::attrReconstructedSurface,
-                            "2xScaledSurf"))
-                    }
+                        CODEC_REF_LIST currRefList = *refList;
+                        currRefList.RefPic         = encodeStatusReport->CurrOriginalPic;
 
-                    if (currRefList.b16xScalingUsed) {
-                        m_statusReportDebugInterface->m_scaledBottomFieldOffset = m_scaled16xBottomFieldOffset;
-                        CODECHAL_ENCODE_CHK_STATUS_RETURN(m_statusReportDebugInterface->DumpYUVSurface(
-                            m_trackedBuf->Get16xDsSurface(currRefList.ucScalingIdx),
-                            CodechalDbgAttr::attrReconstructedSurface,
-                            "16xScaledSurf"))
-                    }
+                        m_statusReportDebugInterface->m_currPic            = encodeStatusReport->CurrOriginalPic;
+                        m_statusReportDebugInterface->m_bufferDumpFrameNum = encodeStatus->dwStoredData;
+                        m_statusReportDebugInterface->m_frameType          = encodeStatus->wPictureCodingType;
 
-                    if (currRefList.b4xScalingUsed) {
-                        m_statusReportDebugInterface->m_scaledBottomFieldOffset = m_scaledBottomFieldOffset;
-                        CODECHAL_ENCODE_CHK_STATUS_RETURN(m_statusReportDebugInterface->DumpYUVSurface(
-                            m_trackedBuf->Get4xDsSurface(currRefList.ucScalingIdx),
-                            CodechalDbgAttr::attrReconstructedSurface,
-                            "4xScaledSurf"))
-                    }
+                        if (!m_vdencEnabled) {
+                            if (currRefList.bMADEnabled)
+                            {
+                                CODECHAL_ENCODE_CHK_STATUS_RETURN(
+                                    m_statusReportDebugInterface->DumpBuffer(
+                                    &m_resMadDataBuffer[currRefList.ucMADBufferIdx],
+                                    CodechalDbgAttr::attrInput,
+                                    "MADWrite",
+                                    CODECHAL_MAD_BUFFER_SIZE,
+                                    0,
+                                    CODECHAL_MEDIA_STATE_ENC_NORMAL));
+                            }
 
-                    if (!(m_codecFunction == CODECHAL_FUNCTION_ENC || m_codecFunction == CODECHAL_FUNCTION_FEI_ENC)) {
-                        if (m_codecFunction == CODECHAL_FUNCTION_HYBRIDPAK)
-                        {
-                            m_statusReportDebugInterface->m_hybridPakP1 = false;
+                            DumpMbEncPakOutput(refList, m_statusReportDebugInterface);
                         }
 
-                        CODECHAL_ENCODE_CHK_STATUS_RETURN(m_statusReportDebugInterface->DumpYUVSurface(
-                            &currRefList.sRefReconBuffer,
-                            CodechalDbgAttr::attrReconstructedSurface,
-                            "ReconSurf"))
-                    })
+                        if (CodecHalUsesVideoEngine(m_codecFunction)) {
+                            /*  Only where the MFX engine is used the bitstream surface will be available */
+                            CODECHAL_ENCODE_CHK_STATUS_RETURN(m_statusReportDebugInterface->DumpBuffer(
+                                &currRefList.resBitstreamBuffer,
+                                CodechalDbgAttr::attrBitstream,
+                                "_PAK",
+                                encodeStatusReport->bitstreamSize,
+                                0,
+                                CODECHAL_NUM_MEDIA_STATES));
+
+                            CODECHAL_ENCODE_CHK_STATUS_RETURN(m_statusReportDebugInterface->DumpData(
+                                encodeStatusReport,
+                                sizeof(EncodeStatusReport),
+                                CodechalDbgAttr::attrStatusReport,
+                                "EncodeStatusReport_Buffer"));
+
+                            CODECHAL_ENCODE_CHK_STATUS_RETURN(DumpFrameStatsBuffer(m_statusReportDebugInterface));
+
+                            if (m_vdencEnabled)
+                            {
+                                /*CODECHAL_ENCODE_CHK_STATUS_RETURN(CodecHal_DbgDumpEncodeVdencOutputs(
+                                    m_debugInterface, pEncoder));
+    -
+                                if (m_cmdGenHucUsed)
+                                {
+                                    CODECHAL_ENCODE_CHK_STATUS_RETURN(CodecHal_DbgDumpEncodeHucCmdGen(
+                                        m_debugInterface, pEncoder));
+                                }*/
+                            }
+                        }
+
+                        if (currRefList.b32xScalingUsed) {
+                            m_statusReportDebugInterface->m_scaledBottomFieldOffset = m_scaled32xBottomFieldOffset;
+                            CODECHAL_ENCODE_CHK_STATUS_RETURN(m_statusReportDebugInterface->DumpYUVSurface(
+                                m_trackedBuf->Get32xDsSurface(currRefList.ucScalingIdx),
+                                CodechalDbgAttr::attrReconstructedSurface,
+                                "32xScaledSurf"))
+                        }
+
+                        if (currRefList.b2xScalingUsed)  // Currently only used for Gen10 Hevc Encode
+                        {
+                            m_statusReportDebugInterface->m_scaledBottomFieldOffset = 0;  // No bottom field offset for Hevc
+                            CODECHAL_ENCODE_CHK_STATUS_RETURN(m_statusReportDebugInterface->DumpYUVSurface(
+                                m_trackedBuf->Get2xDsSurface(currRefList.ucScalingIdx),
+                                CodechalDbgAttr::attrReconstructedSurface,
+                                "2xScaledSurf"))
+                        }
+
+                        if (currRefList.b16xScalingUsed) {
+                            m_statusReportDebugInterface->m_scaledBottomFieldOffset = m_scaled16xBottomFieldOffset;
+                            CODECHAL_ENCODE_CHK_STATUS_RETURN(m_statusReportDebugInterface->DumpYUVSurface(
+                                m_trackedBuf->Get16xDsSurface(currRefList.ucScalingIdx),
+                                CodechalDbgAttr::attrReconstructedSurface,
+                                "16xScaledSurf"))
+                        }
+
+                        if (currRefList.b4xScalingUsed) {
+                            m_statusReportDebugInterface->m_scaledBottomFieldOffset = m_scaledBottomFieldOffset;
+                            CODECHAL_ENCODE_CHK_STATUS_RETURN(m_statusReportDebugInterface->DumpYUVSurface(
+                                m_trackedBuf->Get4xDsSurface(currRefList.ucScalingIdx),
+                                CodechalDbgAttr::attrReconstructedSurface,
+                                "4xScaledSurf"))
+                        }
+
+                        if (!(m_codecFunction == CODECHAL_FUNCTION_ENC || m_codecFunction == CODECHAL_FUNCTION_FEI_ENC)) {
+                            if (m_codecFunction == CODECHAL_FUNCTION_HYBRIDPAK)
+                            {
+                                m_statusReportDebugInterface->m_hybridPakP1 = false;
+                            }
+
+                            CODECHAL_ENCODE_CHK_STATUS_RETURN(m_statusReportDebugInterface->DumpYUVSurface(
+                                &currRefList.sRefReconBuffer,
+                                CodechalDbgAttr::attrReconstructedSurface,
+                                "ReconSurf"))
+                        }
+                    }
+                )
+
             }
             CODECHAL_ENCODE_VERBOSEMESSAGE("Incrementing reports generated to %d.", (reportsGenerated + 1));
             reportsGenerated++;
@@ -4237,6 +4242,15 @@ MOS_STATUS CodechalEncoderState::ExecuteEnc(
         {
             CODECHAL_ENCODE_CHK_NULL_RETURN(encodeParams->psReconSurface);
             CodecHalGetResourceInfo(m_osInterface, encodeParams->psReconSurface);
+
+            if (encodeParams->pResRepak)
+            {
+                for (size_t i = 0; i < encodeParams->pResRepak->dwNumResources; ++i)
+                {
+                    CODECHAL_ENCODE_CHK_NULL_RETURN(&encodeParams->pResRepak->reconSurfaces[i]);
+                    CodecHalGetResourceInfo(m_osInterface, &encodeParams->pResRepak->reconSurfaces[i]);
+                }
+            }
         }
 
         m_encodeParams = *encodeParams;
@@ -4412,6 +4426,25 @@ MOS_STATUS CodechalEncoderState::ExecuteEnc(
                 // Setup slice level PAK commands
                 CODECHAL_ENCODE_CHK_STATUS_MESSAGE_RETURN(ExecuteSliceLevel(),
                     "Slice level encoding failed.");
+
+                if (m_encodeParams.pResRepak)
+                {
+                    if (m_currPass != m_numPasses)
+                    {
+                        if (!m_disableStatusReport)
+                        {
+                            m_storeData++;
+                            m_encodeStatusBuf.wCurrIndex    = (m_encodeStatusBuf.wCurrIndex + 1) % CODECHAL_ENCODE_STATUS_NUM;
+                            m_encodeStatusBufRcs.wCurrIndex = (m_encodeStatusBufRcs.wCurrIndex + 1) % CODECHAL_ENCODE_STATUS_NUM;
+                        }
+
+                        // clean up the Status for next frame
+                        EncodeStatus* encodeStatus =
+                            (EncodeStatus*)(m_encodeStatusBuf.pEncodeStatus +
+                                    m_encodeStatusBuf.wCurrIndex * m_encodeStatusBuf.dwReportSize);
+                        MOS_ZeroMemory((uint8_t*)encodeStatus, sizeof(EncodeStatus));
+                    }
+                }
 
                 m_lastTaskInPhase = false;
             }

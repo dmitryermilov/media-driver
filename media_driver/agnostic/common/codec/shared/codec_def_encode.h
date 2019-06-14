@@ -41,6 +41,14 @@ struct CodechalEncodeSeiData
     uint8_t*   pSEIBuffer;
 };
 
+#define CODEC_ENCODE_MAX_NUM_PAK_PASSES 4
+struct CodechalEncodeRepakResult
+{
+    uint32_t     dwNumResources;
+    MOS_SURFACE  reconSurfaces[CODEC_ENCODE_MAX_NUM_PAK_PASSES];
+    MOS_RESOURCE bitstreamBuffers[CODEC_ENCODE_MAX_NUM_PAK_PASSES];
+} ;
+
 //!
 //! \struct EncoderParams
 //! \brief  Encoder parameters
@@ -124,12 +132,16 @@ struct EncoderParams
 
     MOS_SURFACE                     rawSurface;                     //!< Raw surface
     MOS_SURFACE                     reconSurface;                   //!< reconstructed surface
+
     MOS_RESOURCE                    resBitstreamBuffer;             //!< Output buffer for bitstream data.
+
     MOS_SURFACE                     mbQpSurface;
     MOS_SURFACE                     disableSkipMapSurface;          //!< [AVC] MB disable skip map provided by framework
     HANDLE                          gpuAppTaskEvent;                // MSDK event handling
 
     bool                            fullHeaderInAppData;         //!< [JPEG]
+
+    CodechalEncodeRepakResult       *pResRepak;
 };
 
 #endif // !__CODEC_DEF_ENCODE_H__

@@ -2266,7 +2266,7 @@ void CodechalEncodeHevcBase::SetHcpReconSurfaceParams(MHW_VDBOX_SURFACE_PARAMS& 
 {
     MOS_ZeroMemory(&reconSurfaceParams, sizeof(reconSurfaceParams));
     reconSurfaceParams.Mode = m_mode;
-    reconSurfaceParams.psSurface = &m_reconSurface;
+    reconSurfaceParams.psSurface = (!m_encodeParams.pResRepak || (m_currPass == 0)) ? &m_reconSurface : &(m_encodeParams.pResRepak->reconSurfaces[m_currPass - 1]);
     reconSurfaceParams.ucSurfaceStateId = CODECHAL_HCP_DECODED_SURFACE_ID;
     reconSurfaceParams.ucBitDepthLumaMinus8   = m_hevcSeqParams->bit_depth_luma_minus8;
     reconSurfaceParams.ucBitDepthChromaMinus8 = m_hevcSeqParams->bit_depth_chroma_minus8;
@@ -2284,8 +2284,8 @@ void CodechalEncodeHevcBase::SetHcpPipeBufAddrParams(MHW_VDBOX_PIPE_BUF_ADDR_PAR
 
     pipeBufAddrParams = {};
     pipeBufAddrParams.Mode = m_mode;
-    pipeBufAddrParams.psPreDeblockSurface = &m_reconSurface;
-    pipeBufAddrParams.psPostDeblockSurface = &m_reconSurface;
+    pipeBufAddrParams.psPreDeblockSurface = (!m_encodeParams.pResRepak || (m_currPass == 0)) ? &m_reconSurface : &(m_encodeParams.pResRepak->reconSurfaces[m_currPass - 1]);
+    pipeBufAddrParams.psPostDeblockSurface = (!m_encodeParams.pResRepak || (m_currPass == 0)) ? &m_reconSurface : &(m_encodeParams.pResRepak->reconSurfaces[m_currPass - 1]);
     pipeBufAddrParams.psRawSurface = m_rawSurfaceToPak;
     pipeBufAddrParams.presStreamOutBuffer = m_vdencEnabled ? &m_resStreamOutBuffer[0] : nullptr;
     pipeBufAddrParams.presMfdDeblockingFilterRowStoreScratchBuffer    = &m_resDeblockingFilterRowStoreScratchBuffer;
@@ -2339,7 +2339,7 @@ void CodechalEncodeHevcBase::SetHcpIndObjBaseAddrParams(MHW_VDBOX_IND_OBJ_BASE_A
     indObjBaseAddrParams.presMvObjectBuffer = &m_resMbCodeSurface;
     indObjBaseAddrParams.dwMvObjectOffset = m_mvOffset;
     indObjBaseAddrParams.dwMvObjectSize = m_mbCodeSize - m_mvOffset;
-    indObjBaseAddrParams.presPakBaseObjectBuffer = &m_resBitstreamBuffer;
+    indObjBaseAddrParams.presPakBaseObjectBuffer = (!m_encodeParams.pResRepak || (m_currPass == 0)) ? &m_resBitstreamBuffer : &(m_encodeParams.pResRepak->bitstreamBuffers[m_currPass - 1]);
     indObjBaseAddrParams.dwPakBaseObjectSize =m_bitstreamUpperBound;
     indObjBaseAddrParams.presPakTileSizeStasBuffer =  nullptr;
     indObjBaseAddrParams.dwPakTileSizeStasBufferSize = 0;
