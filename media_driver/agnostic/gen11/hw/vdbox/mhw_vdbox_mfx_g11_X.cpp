@@ -223,7 +223,7 @@ MOS_STATUS MhwVdboxMfxInterfaceG11::GetRowstoreCachingAddrs(
                 m_mprRowstoreCache.dwAddress = MPRROWSTORE_FRAME_FIELD_BASEADDRESS_PICWIDTH_GREATER_THAN_3K;
             }
         }
-        else  //Mbaff 
+        else  //Mbaff
         {
             if (rowstoreParams->dwPicWidth < MHW_VDBOX_PICWIDTH_2K)
             {
@@ -491,7 +491,7 @@ MOS_STATUS MhwVdboxMfxInterfaceG11::GetMfxStateCommandsDataSize(
     }
     else if (standard == CODECHAL_JPEG)
     {
-        // Added to prevent error for JPEG 
+        // Added to prevent error for JPEG
     }
     else
     {
@@ -711,9 +711,9 @@ MOS_STATUS MhwVdboxMfxInterfaceG11::AddMfxPipeModeSelectCmd(
         cmd.DW1.VdencMode = 1;
         // Enable 4xDS in PAK for VDENC HME
         cmd.DW1.ScaledSurfaceEnable = 1;
-        // Disable PAK streamout from previous PAK pass, as VDEnc does not support standalone PAK 
+        // Disable PAK streamout from previous PAK pass, as VDEnc does not support standalone PAK
         cmd.DW1.StreamOutEnable = 0;
-        // Enable PAK statistics streamout 
+        // Enable PAK statistics streamout
         cmd.DW1.FrameStatisticsStreamoutEnable = 1;
     }
 
@@ -778,7 +778,7 @@ MOS_STATUS MhwVdboxMfxInterfaceG11::AddMfxSurfaceCmd(
         // this parameter must always be 0 for JPEG regardless of the YUV format
         cmd.DW3.InterleaveChroma = 0;
 
-        // Separate function for JPEG decode because this surface format should match with that programmed 
+        // Separate function for JPEG decode because this surface format should match with that programmed
         // in JPEG Picture State
         cmd.DW3.SurfaceFormat = GetJpegDecodeFormat(params->psSurface->Format);
 
@@ -1945,7 +1945,7 @@ MOS_STATUS MhwVdboxMfxInterfaceG11::AddMfxPakInsertObject(
             params->bHeaderLengthExcludeFrmSize; // Cannot be set to true if emulation byte bit insertion is enabled
         MHW_MI_CHK_STATUS(Mhw_AddCommandCmdOrBB(cmdBuffer, batchBuffer, &cmd, sizeof(cmd)));
 
-        // Add actual data 
+        // Add actual data
         uint8_t* data = (uint8_t*)(params->pBsBuffer->pBase + params->dwOffset);
         MHW_MI_CHK_STATUS(Mhw_AddCommandCmdOrBB(cmdBuffer, batchBuffer, data, byteSize));
     }
@@ -2109,7 +2109,7 @@ MOS_STATUS MhwVdboxMfxInterfaceG11::AddMfxJpegFqmCmd(
 
         auto j = 0;
         // Copy over 32 uint32_t worth of values - Each uint32_t will contain 2 16 bit quantizer values
-        // where for the DWordx Bits [15: 0] = 1/QM[0][x] Bits[32:16] = 1/QM[1][x] 
+        // where for the DWordx Bits [15: 0] = 1/QM[0][x] Bits[32:16] = 1/QM[1][x]
         for (auto k = 0; k < 8; k++)
         {
             for (auto l = k; l < 64; l += 16)
@@ -2142,15 +2142,15 @@ MOS_STATUS MhwVdboxMfxInterfaceG11::AddMfcJpegHuffTableStateCmd(
     cmd.DW1.HuffTableId = params->HuffTableID;
 
     // cmd DWORDS 2:13 for DC Table
-    // Format- 3Bytes: Byte0 for Code length, Byte1 and Byte2 for Code word, and Byte3 for dummy 
+    // Format- 3Bytes: Byte0 for Code length, Byte1 and Byte2 for Code word, and Byte3 for dummy
     for (auto j = 0; j < JPEG_NUM_HUFF_TABLE_DC_HUFFVAL; j++)
     {
         cmd.DcTable[j] = 0;
         cmd.DcTable[j] = (params->pDCCodeLength[j] & 0xFF) | ((params->pDCCodeValues[j] & 0xFFFF) << 8);
     }
 
-    // cmd DWORDS 14:175 for AC table 
-    // Format- 3Bytes: Byte0 for Code length, Byte1 and Byte2 for Code word, and Byte3 for dummy 
+    // cmd DWORDS 14:175 for AC table
+    // Format- 3Bytes: Byte0 for Code length, Byte1 and Byte2 for Code word, and Byte3 for dummy
     for (auto j = 0; j < JPEG_NUM_HUFF_TABLE_AC_HUFFVAL; j++)
     {
         cmd.AcTable[j] = 0;
@@ -2182,8 +2182,8 @@ MOS_STATUS MhwVdboxMfxInterfaceG11::AddMfcJpegScanObjCmd(
     cmd.DW1.McuCount = ((params->dwPicWidth + (horizontalSamplingFactor * 8 - 1)) / (horizontalSamplingFactor * 8))
         * ((params->dwPicHeight + (verticalSamplingFactor * 8 - 1)) / (verticalSamplingFactor * 8));
     cmd.DW2.RestartInterval = params->pJpegEncodeScanParams->m_restartInterval;
-    cmd.DW2.IsLastScan = 1; // Always 1 since there is only 1 scan in the JPEG frame 
-    cmd.DW2.HeadPresentFlag = 1; // There will always be MFC_JPEG_PAK_INSERT_OBJECT commands sent 
+    cmd.DW2.IsLastScan = 1; // Always 1 since there is only 1 scan in the JPEG frame
+    cmd.DW2.HeadPresentFlag = 1; // There will always be MFC_JPEG_PAK_INSERT_OBJECT commands sent
 
     for (auto i = 0; i < jpegNumComponent; i++)
     {

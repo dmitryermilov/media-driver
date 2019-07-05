@@ -2400,7 +2400,44 @@ MOS_STATUS MhwVdboxHcpInterfaceG11::AddHcpEncodePicStateCmd(
     cmd.DW5.BitDepthLumaMinus8                                      = hevcSeqParams->bit_depth_luma_minus8;
 
     cmd.DW6.LcuMaxBitsizeAllowed                                    = hevcPicParams->LcuMaxBitsizeAllowed;
-    cmd.DW6.Nonfirstpassflag                                        = 0;    // needs to be updated for HEVC VDEnc
+    if (params->maxFrameSize && params->currPass)
+    {
+        cmd.DW6.Nonfirstpassflag = 1;
+    }
+    else
+    {
+        cmd.DW6.Nonfirstpassflag = 0;
+    }
+
+    // Add for multiple pass
+    if (params->maxFrameSize > 0 && params->deltaQp)
+    {
+        uint8_t hevcMaxPassNum = 8;
+
+        // When current pass is less than the max number of pass, set the delta QP.
+        if (params->currPass < hevcMaxPassNum)
+        {
+            cmd.DW10_11.Value[0] = (params->deltaQp[params->currPass] << 24) | (params->deltaQp[params->currPass] << 16) |
+                (params->deltaQp[params->currPass] << 8) | params->deltaQp[params->currPass];
+            cmd.DW10_11.Value[1] = (params->deltaQp[params->currPass] << 24) | (params->deltaQp[params->currPass] << 16) |
+                (params->deltaQp[params->currPass] << 8) | params->deltaQp[params->currPass];
+        }
+
+        // If the calculated value of max frame size exceeded 14 bits, need set the unit as 4K byte. Else, set the unit as 32 byte.
+        if (params->maxFrameSize >= (0x1 << 14) * 32)
+        {
+            cmd.DW7.Framebitratemaxunit = 1;
+            cmd.DW7.Framebitratemax = params->maxFrameSize >> 12;
+            cmd.DW9.Framebitratemaxdelta = params->maxFrameSize >> 13;
+        }
+        else
+        {
+            cmd.DW7.Framebitratemaxunit = 0;
+            cmd.DW7.Framebitratemax = params->maxFrameSize >> 5;
+            cmd.DW9.Framebitratemaxdelta = params->maxFrameSize >> 6;
+        }
+    }    
+
     cmd.DW6.LcumaxbitstatusenLcumaxsizereportmask                   = 0;
     cmd.DW6.FrameszoverstatusenFramebitratemaxreportmask            = 0;
     cmd.DW6.FrameszunderstatusenFramebitrateminreportmask           = 0;
