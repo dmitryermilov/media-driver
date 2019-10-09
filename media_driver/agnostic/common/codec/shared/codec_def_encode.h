@@ -47,6 +47,7 @@ struct CodechalEncodeRepakResult
     uint32_t     dwNumResources;
     MOS_SURFACE  reconSurfaces[CODEC_ENCODE_MAX_NUM_PAK_PASSES];
     MOS_RESOURCE bitstreamBuffers[CODEC_ENCODE_MAX_NUM_PAK_PASSES];
+    MOS_RESOURCE pakCuLevelStreamout;
 } ;
 
 //!

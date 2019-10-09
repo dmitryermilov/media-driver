@@ -168,7 +168,8 @@ MOS_STATUS CodechalEncHevcStateG11::InitializePicture(const EncoderParams& param
     // for HEVC VME, HUC based WP is not supported.
     m_hevcPicParams->bEnableGPUWeightedPrediction = false;
 
-    m_pakPiplStrmOutEnable = m_sseEnabled || (m_brcEnabled && m_numPipe > 1);
+    //m_pakPiplStrmOutEnable = m_sseEnabled || (m_brcEnabled && m_numPipe > 1);
+    m_pakPiplStrmOutEnable = true;
 
     CODECHAL_ENCODE_CHK_STATUS_RETURN(SetTileData(m_tileParams, params.dwBitstreamSize));
     CODECHAL_ENCODE_CHK_STATUS_RETURN(AllocateTileStatistics());
@@ -2051,6 +2052,12 @@ MOS_STATUS CodechalEncHevcStateG11::AllocateResourcesVariableSize()
         if (Mos_ResourceIsNull(&m_resPakcuLevelStreamoutData.sResource) ||
             (bufSize > m_resPakcuLevelStreamoutData.dwSize))
         {
+            if (!Mos_ResourceIsNull(&m_encodeParams.pResRepak->pakCuLevelStreamout))
+            {
+                CODECHAL_ENCODE_ASSERTMESSAGE("ERROR!: not enought buffer rize\n");
+                eStatus = MOS_STATUS_INVALID_PARAMETER;
+            }
+
             if (!Mos_ResourceIsNull(&m_resPakcuLevelStreamoutData.sResource))
             {
                 m_osInterface->pfnFreeResource(m_osInterface, &m_resPakcuLevelStreamoutData.sResource);
@@ -8937,6 +8944,14 @@ void CodechalEncHevcStateG11::SetHcpPipeBufAddrParams(MHW_VDBOX_PIPE_BUF_ADDR_PA
 
     CodechalEncodeHevcBase::SetHcpPipeBufAddrParams(pipeBufAddrParams);
 
+    if (m_encodeParams.pResRepak && !Mos_ResourceIsNull(&m_encodeParams.pResRepak->pakCuLevelStreamout))
+    {
+        if (0 == m_currPass)
+        {
+            pipeBufAddrParams.presPakCuLevelStreamoutBuffer = &m_encodeParams.pResRepak->pakCuLevelStreamout;
+        }
+    }
+
     PCODECHAL_ENCODE_BUFFER tileStatisticsBuffer = &m_resTileBasedStatisticsBuffer[m_virtualEngineBbIndex];
     if (!Mos_ResourceIsNull(&tileStatisticsBuffer->sResource) && (m_numPipe > 1))
     {
@@ -9089,7 +9104,7 @@ MOS_STATUS CodechalEncHevcStateG11::DumpPakOutput()
     CODECHAL_DEBUG_TOOL(
         int32_t currentPass = GetCurrentPass();
         CODECHAL_ENCODE_CHK_STATUS_RETURN(m_debugInterface->DumpBuffer(
-            &m_resPakcuLevelStreamoutData.sResource,
+            &m_encodeParams.pResRepak->pakCuLevelStreamout,
             CodechalDbgAttr::attrCUStreamout,
             currPassName.data(),
             m_resPakcuLevelStreamoutData.dwSize,

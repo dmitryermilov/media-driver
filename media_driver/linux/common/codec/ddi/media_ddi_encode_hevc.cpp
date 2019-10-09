@@ -1033,6 +1033,16 @@ VAStatus DdiEncodeHevc::ParseMiscMultiPassPerPAKOutput(DDI_MEDIA_CONTEXT *mediaC
         DdiMedia_MediaSurfaceToMosResource(surface, &(m_encodeCtx->pResRepak->reconSurfaces[i].OsResource));
     }
 
+    // CU level statistic
+    {
+        DDI_MEDIA_BUFFER *buf = DdiMedia_GetBufferFromVABufferID(m_encodeCtx->pMediaCtx, vaEncMiscParam->cu_stat);
+        if (nullptr == buf)
+        {
+            return VA_STATUS_ERROR_INVALID_PARAMETER;
+        }
+        DdiMedia_MediaBufferToMosResource(buf, &(m_encodeCtx->pResRepak->pakCuLevelStreamout));
+    }
+
 finish:
     return vaStatus;
 }
